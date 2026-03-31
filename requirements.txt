@@ -1,0 +1,5 @@
+fastf1
+seaborn
+matplotlib
+numpy 
+pandas

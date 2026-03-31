@@ -1,17 +1,4 @@
 # Build various functions for laps completed, stints on all tyre compounds
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import matplotlib.gridspec as gridspec
-
-import fastf1
-from fastf1 import utils
-
-from fastf1.utils import delta_time
-import fastf1.plotting
-
 '''
 Practice
 1. No. of Laps completed
@@ -28,6 +15,20 @@ Race
 3. Gap to leader
 
 '''
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib.gridspec as gridspec
+
+import fastf1
+from fastf1 import utils
+
+from fastf1.utils import delta_time
+import fastf1.plotting
+
+
 
 class Practice():
     def __init__(self,session):
@@ -91,16 +92,16 @@ class Qualifying():
         
         for corner_index in range(len(self.session.get_circuit_info().corners)):
             ax0.axvline(x=self.session.get_circuit_info().corners['Distance'][corner_index], color='yellow', linestyle='--', linewidth=0.5)
-            ax0.text(self.session.get_circuit_info().corners['Distance'][corner_index], self.session.laps.pick_fastest().get_telemetry().Speed.min(), f'{corner_index}', ha='center', va='bottom')
+            ax0.text(self.session.get_circuit_info().corners['Distance'][corner_index], self.session.laps.pick_fastest().get_telemetry().Speed.min(), f'{corner_index+1}', ha='center', va='bottom')
 
             ax1.axvline(x=self.session.get_circuit_info().corners['Distance'][corner_index], color='yellow', linestyle='--', linewidth=0.5)
-            ax1.text(self.session.get_circuit_info().corners['Distance'][corner_index], 0, f'{corner_index}', ha='center', va='bottom')
+            ax1.text(self.session.get_circuit_info().corners['Distance'][corner_index], 0, f'{corner_index+1}', ha='center', va='bottom')
         
             ax2.axvline(x=self.session.get_circuit_info().corners['Distance'][corner_index], color='yellow', linestyle='--', linewidth=0.5)
-            ax2.text(self.session.get_circuit_info().corners['Distance'][corner_index], 0, f'{corner_index}', ha='center', va='bottom')
+            ax2.text(self.session.get_circuit_info().corners['Distance'][corner_index], 0, f'{corner_index+1}', ha='center', va='bottom')
 
             ax3.axvline(x=self.session.get_circuit_info().corners['Distance'][corner_index], color='yellow', linestyle='--', linewidth=0.5)
-            ax3.text(self.session.get_circuit_info().corners['Distance'][corner_index], 0, f'{corner_index}', ha='center', va='bottom')
+            ax3.text(self.session.get_circuit_info().corners['Distance'][corner_index], 0, f'{corner_index+1}', ha='center', va='bottom')
 
         ax0.legend(loc='lower right')
         ax0.set_title("Speed")
@@ -118,4 +119,49 @@ class Qualifying():
         plt.show()
 
         if save:
-            plt.savefig(f'{format(self.session.session_info['StartDate'],'%Y')}_{self.session.session_info['Meeting']['Location']}_{self.session.session_info['Type']}_Q3Comparison')
+            fig.savefig(f'{format(self.session.session_info['StartDate'],'%Y')}_{self.session.session_info['Meeting']['Location']}_{self.session.session_info['Type']}_Q3Comparison')
+            
+    def car_setups(self,save=False,quantile=0.05):
+
+        team_colors = {}
+
+        for key, value in fastf1.plotting.get_driver_color_mapping(session=self.session).items():
+            team_colors[fastf1.plotting.get_team_name_by_driver(key,session=self.session)] = value
+
+        car_setup = []
+        for i in self.session.drivers:
+            try:
+                car_setup.append([i,self.session.get_driver(i)['LastName'],self.session.get_driver(i)['TeamName'],self.session.laps.pick_drivers(i).pick_fastest().get_telemetry().Speed.mean(),self.session.laps.pick_drivers(i).pick_fastest().get_telemetry().Speed.max()])
+            except:
+                pass
+        
+        car_setup = pd.DataFrame(car_setup,columns=['Driver','DriverName','Team','MeanSpeed','TopSpeed'])
+        car_setup['SpeedRatio'] = car_setup['MeanSpeed']/car_setup['TopSpeed']
+        car_setup['SpeedRatio'] = car_setup['SpeedRatio'].apply(lambda x : np.round(x,3))
+
+        fig, ax = plt.subplots(figsize=(20,10))
+        sns.scatterplot(data=car_setup,x='MeanSpeed',y='TopSpeed',hue='Team',palette=team_colors,s=75,ax=ax)
+
+        plt.axhline(car_setup['TopSpeed'].mean(),linewidth=0.5)
+        plt.hlines(car_setup['TopSpeed'].quantile(quantile),xmin=car_setup['MeanSpeed'].quantile(quantile),xmax=car_setup['MeanSpeed'].quantile(1-quantile),linestyle='dashed',linewidth=0.5)
+        plt.hlines(car_setup['TopSpeed'].quantile(1-quantile),xmin=car_setup['MeanSpeed'].quantile(quantile),xmax=car_setup['MeanSpeed'].quantile(1-quantile),linestyle='dashed',linewidth=0.5)
+
+        plt.axvline(car_setup['MeanSpeed'].mean(),linewidth=0.5)
+        plt.vlines(car_setup['MeanSpeed'].quantile(quantile),ymin=car_setup['TopSpeed'].quantile(quantile),ymax=car_setup['TopSpeed'].quantile(1-quantile),linestyle='dashed',linewidth=0.5)
+        plt.vlines(car_setup['MeanSpeed'].quantile(1-quantile),ymin=car_setup['TopSpeed'].quantile(quantile),ymax=car_setup['TopSpeed'].quantile(1-quantile),linestyle='dashed',linewidth=0.5)
+
+
+        for _, row in car_setup.iterrows():
+            # plt.text(row['MeanSpeed'], row['TopSpeed']-0.25, f'{row['Driver']}', fontsize=9, ha='center', va='bottom')
+            plt.text(row['MeanSpeed'], row['TopSpeed']-0.25, f'{row['DriverName']}', fontsize=9, ha='center', va='top')
+
+        plt.legend()
+        plt.title('Car Setups Comparison')
+        
+        plt.show()
+
+        if save:
+            fig.savefig(f'{format(self.session.session_info['StartDate'],'%Y')}_{self.session.session_info['Meeting']['Location']}_{self.session.session_info['Type']}_CarSetups.png')
+
+        
+
