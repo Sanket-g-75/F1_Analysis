@@ -54,11 +54,17 @@ class Qualifying():
         self.q2 = q2.pick_accurate()
         self.q3 = q3.pick_accurate()
 
-    def compare_laps(self,drivers):
+    def compare_laps(self,drivers,save=False):
         laps = []
         
         fig = plt.figure(figsize=(20, 15))
         gs = gridspec.GridSpec(4, 1, height_ratios=[1, 0.75, 0.5, 0.5])  # Define grid with different heights
+
+        ax0 = fig.add_subplot(gs[0])
+        ax1 = fig.add_subplot(gs[1])
+        ax1.axhline(y=0, color='yellow', linestyle='dotted', linewidth=0.5)
+        ax2 = fig.add_subplot(gs[2])
+        ax3 = fig.add_subplot(gs[3])
 
         for i in drivers:
             laps.append([i,self.q3.pick_driver(i).pick_fastest()['LapTime']])
@@ -68,23 +74,18 @@ class Qualifying():
         for i in drivers:
             data = self.q3.pick_driver(i).pick_fastest().get_telemetry(frequency=20).add_distance()
             
-            # Speed Plot
-            ax0 = fig.add_subplot(gs[0])
+            # Speed Plot            
             ax0.plot(data['Distance'], data['Speed'], label=self.session.get_driver(i)['LastName'], color=fastf1.plotting.get_driver_color(i,session=self.session))
             
             # Gap(Diff) Plot
-            delta_time, ref_tel, compare_tel = utils.delta_time(self.q3.pick_driver(laps[0][0]).pick_fastest(), self.q3.pick_driver(i).pick_fastest())
-
-            ax1 = fig.add_subplot(gs[1])
-            ax1.plot(ref_tel['Distance'],delta_time, label='Diff', color=fastf1.plotting.get_driver_color(i,session=self.session),linestyle='dotted')
-            ax1.axhline(y=0, color='yellow', linestyle='dotted', linewidth=0.5)
+            if i != laps[0][0]:
+                delta_time, ref_tel, compare_tel = utils.delta_time(self.q3.pick_driver(laps[0][0]).pick_fastest(), self.q3.pick_driver(i).pick_fastest())
+                ax1.plot(ref_tel['Distance'],delta_time, label=f'{laps[0][0]}-{i} Diff', color=fastf1.plotting.get_driver_color(i,session=self.session),linestyle='dotted')
             
-            # Throttle Plot
-            ax2 = fig.add_subplot(gs[2])
+            # Throttle Plot            
             ax2.plot(data['Distance'], data['Throttle'], label=self.session.get_driver(i)['LastName'], color=fastf1.plotting.get_driver_color(i,session=self.session))
 
             # Brake Plot
-            ax3 = fig.add_subplot(gs[3])
             ax3.plot(data['Distance'], data['Brake'], label=self.session.get_driver(i)['LastName'], color=fastf1.plotting.get_driver_color(i,session=self.session))
             
         
@@ -115,3 +116,6 @@ class Qualifying():
 
         plt.tight_layout()
         plt.show()
+
+        if save:
+            plt.savefig(f'{format(self.session.session_info['StartDate'],'%Y')}_{self.session.session_info['Meeting']['Location']}_{self.session.session_info['Type']}_Q3Comparison')
